@@ -19,7 +19,7 @@
 
 	<bean id="embeddedCacheManagerFactory" class="com.redhat.waw.ose.model.EmbeddedCacheManagerFactory" />
 
-	<bean id="cacheManager" factory-bean="embeddedCacheManagerFactory"
+    <bean id="cacheManager" factory-bean="embeddedCacheManagerFactory"
 		factory-method="newEmbeddedCacheManager" />
 
     <bean id="camelTracer" class="org.apache.camel.processor.interceptor.Tracer">
@@ -35,99 +35,93 @@
 		<property name="showOutBody" value="true" />
 		<property name="showOutBodyType" value="true" />
 	</bean>
+	
+	<!-- restConfiguration component="servlet" bindingMode="json" contextPath="transaction-loader/rest" port="80">
+      <dataFormatProperty key="prettyPrint" value="true"/>
+    </restConfiguration-->
 
-	<camelContext trace="false"
-		xmlns="http://camel.apache.org/schema/spring">
-		<propertyPlaceholder id="properties"
-                             location="classpath:/remote.properties"
-                             xmlns="http://camel.apache.org/schema/spring"/>
-		<dataFormats>
-			<jaxb contextPath="com.redhat.waw.ose.model" prettyPrint="true"
-				id="ctJaxb" />
-			<json library="Jackson" unmarshalTypeName="com.redhat.waw.ose.model.CustomerTransaction"
-				id="ctJson" />
-		</dataFormats>
-		<onException>
-			<exception>java.lang.Exception</exception>
-			<handled>
-				<constant>true</constant>
-			</handled>
-			<log message="Operation failed with message: ${exception}"
-				loggingLevel="ERROR" logName="com.redhat.waw.camel" />
-			<transform>
-				<simple>Operation failed with message: ${exception.message}</simple>
-			</transform>
-		</onException>
-		<route customId="true" id="Main Route">
-			<from uri="servlet:///datagrid" />
-			<choice>
-				<description>incoming requests from the servlet is routed</description>
-				<when>
-					<header>putXml</header>
-					<setBody>
-						<simple>${header.putXml}</simple>
-					</setBody>
-					<unmarshal ref="ctJaxb" />
-					<to uri="direct:putLocal" />
-				</when>
-				<when>
-					<header>putJson</header>
-					<setBody>
-						<simple>${header.putJson}</simple>
-					</setBody>
-					<unmarshal ref="ctJson" />
-					<to uri="direct:putLocal" />
-				</when>
-				<when>
-					<header>getJson</header>
-					<setHeader headerName="CamelInfinispanKey">
-						<simple resultType="java.lang.String">${header.getJson}</simple>
-					</setHeader>
-					<to uri="direct:getLocal" />
-					<marshal ref="ctJson" />
-				</when>
-				<when>
-					<header>getXml</header>
-					<setHeader headerName="CamelInfinispanKey">
-						<simple resultType="java.lang.String">${header.getXml}</simple>
-					</setHeader>
-					<to uri="direct:getLocal" />
-					<marshal ref="ctJaxb" />
-				</when>
-				<otherwise>
-					<transform>
-						<description>if no name parameter then output a syntax to the user</description>
-						<constant>Add a put,get parameter to uri, eg ? put=foo</constant>
-					</transform>
-				</otherwise>
-			</choice>
-		</route>
-		<route customId="true" id="Put to local cache">
-			<from uri="direct:putLocal" />
-			<setHeader headerName="CamelInfinispanKey">
-				<simple>${in.body.transactionid}</simple>
-			</setHeader>
-			<setHeader headerName="CamelInfinispanValue">
-				<simple>${in.body}</simple>
-			</setHeader>
-			<to uri="infinispan://localhost?cacheContainer=#cacheManager&amp;cacheName=transactions" />
-			<log
-				message="Updated entry ${header.CamelInfinispanKey} with value ${header.CamelInfinispanValue}"
-				loggingLevel="INFO" />
-		</route>
-		<route customId="true" id="Get from local cache">
-			<from uri="direct:getLocal" />
-			<setHeader headerName="CamelInfinispanOperation">
-				<simple>CamelInfinispanOperationGet</simple>
-			</setHeader>
-			<to uri="infinispan://localhost?cacheContainer=#cacheManager&amp;cacheName=transactions" />
-			<setBody>
-				<simple resultType="com.redhat.waw.ose.model.CustomerTransaction">${header.CamelInfinispanOperationResult}</simple>
-			</setBody>
-			<log
-				message="Retrived Event that entry ${header.CamelInfinispanKey} was updated with value ${body}"
-				loggingLevel="INFO" />
-		</route>
-	</camelContext>
+	<camelContext trace="false" xmlns="http://camel.apache.org/schema/spring">
+    <propertyPlaceholder location="classpath:/remote.properties" id="properties"/>
+    <dataFormats>
+        <jaxb contextPath="com.redhat.waw.ose.model" prettyPrint="true" id="ctJaxb"/>
+        <json library="Jackson" unmarshalTypeName="com.redhat.waw.ose.model.CustomerTransaction" id="ctJson"/>
+    </dataFormats>
+    <onException>
+        <exception>java.lang.Exception</exception>
+        <handled>
+            <constant>true</constant>
+        </handled>
+        <log message="Operation failed with message: ${exception}" loggingLevel="ERROR" logName="com.redhat.waw.camel"/>
+        <transform>
+            <simple>Operation failed with message: ${exception.message}</simple>
+        </transform>
+    </onException>
+    <route customId="true" id="Main Route">
+        <from uri="servlet:///datagrid"/>
+        <choice>
+            <description>incoming requests from the servlet is routed</description>
+            <when>
+                <header>putXml</header>
+                <setBody>
+                    <simple>${header.putXml}</simple>
+                </setBody>
+                <unmarshal ref="ctJaxb"/>
+                <to uri="direct:putLocal"/>
+            </when>
+            <when>
+                <header>putJson</header>
+                <setBody>
+                    <simple>${header.putJson}</simple>
+                </setBody>
+                <unmarshal ref="ctJson"/>
+                <to uri="direct:putLocal"/>
+            </when>
+            <when>
+                <header>getJson</header>
+                <setHeader headerName="CamelInfinispanKey">
+                    <simple resultType="java.lang.String">${header.getJson}</simple>
+                </setHeader>
+                <to uri="direct:getLocal"/>
+                <marshal ref="ctJson"/>
+            </when>
+            <when>
+                <header>getXml</header>
+                <setHeader headerName="CamelInfinispanKey">
+                    <simple resultType="java.lang.String">${header.getXml}</simple>
+                </setHeader>
+                <to uri="direct:getLocal"/>
+                <marshal ref="ctJaxb"/>
+            </when>
+            <otherwise>
+                <transform>
+                    <description>if no name parameter then output a syntax to the user</description>
+                    <constant>Add a put,get parameter to uri, eg ? put=foo</constant>
+                </transform>
+            </otherwise>
+        </choice>
+    </route>
+    <route customId="true" id="Put to local cache">
+        <from uri="direct:putLocal"/>
+        <setHeader headerName="CamelInfinispanKey">
+            <simple>${in.body.transactionid}</simple>
+        </setHeader>
+        <setHeader headerName="CamelInfinispanValue">
+            <simple>${in.body}</simple>
+        </setHeader>
+        <to uri="infinispan://localhost?cacheContainer=#cacheManager&amp;cacheName=transactions"/>
+        <log message="Updated entry ${header.CamelInfinispanKey} with value ${header.CamelInfinispanValue}" loggingLevel="INFO"/>
+    </route>
+    <route customId="true" id="Get from local cache">
+        <from uri="direct:getLocal"/>
+        <setHeader headerName="CamelInfinispanOperation">
+            <simple>CamelInfinispanOperationGet</simple>
+        </setHeader>
+        <to uri="infinispan://localhost?cacheContainer=#cacheManager&amp;cacheName=transactions"/>
+        <setBody>
+            <simple resultType="com.redhat.waw.ose.model.CustomerTransaction">${header.CamelInfinispanOperationResult}</simple>
+        </setBody>
+        <log message="Retrived Event that entry ${header.CamelInfinispanKey} was updated with value ${body}" loggingLevel="INFO"/>
+    </route>
+  </camelContext>
 </beans>
 <!-- END SNIPPET: e1 -->
